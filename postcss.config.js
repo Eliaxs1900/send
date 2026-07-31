@@ -1,17 +1,11 @@
+// Tailwind 4 se integra en PostCSS a través de su propio paquete y hace la
+// minificación con Lightning CSS, así que ya no hace falta cssnano.
 const options = {
-  plugins: [require('tailwindcss'), require('postcss-preset-env')]
+  plugins: [require('@tailwindcss/postcss')]
 };
 
 if (process.env.NODE_ENV === 'development') {
   options.map = { inline: true };
-} else {
-  // Tailwind 3 only generates the classes it finds in `content`, so the
-  // separate purgecss pass this build used to run is no longer needed.
-  options.plugins.push(
-    require('cssnano')({
-      preset: 'default'
-    })
-  );
 }
 
 module.exports = options;

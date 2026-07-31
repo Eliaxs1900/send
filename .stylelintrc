@@ -1,13 +1,20 @@
 extends: stylelint-config-standard
 
-plugins:
-  - stylelint-no-unsupported-browser-features
-
 rules:
-  plugin/no-unsupported-browser-features: [true, {severity: warning}]
-
-  color-hex-case: lower
-  declaration-colon-newline-after: null
-  selector-list-comma-newline-after: null
-  value-list-comma-newline-after: null
+  # Tailwind aporta sus propias at-rules (@apply, @utility, @variant,
+  # @config, @theme), que stylelint no conoce.
   at-rule-no-unknown: null
+  # y las funciones theme()/screen() dentro de valores
+  function-no-unknown: null
+  # Tailwind 4 solo resuelve sus imports virtuales en forma de cadena:
+  # convertirlos a url() deja fuera las utilidades del bundle
+  import-notation: null
+  # el proyecto usa prefijos -webkit-/-moz- a proposito para los gradientes
+  # de <progress>, que no tienen equivalente estandar
+  property-no-vendor-prefix: null
+  value-no-vendor-prefix: null
+  at-rule-no-vendor-prefix: null
+  # nombres heredados con guiones y mayusculas mezcladas
+  keyframes-name-pattern: null
+  selector-class-pattern: null
+  custom-property-pattern: null

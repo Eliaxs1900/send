@@ -1,11 +1,41 @@
-@tailwind base;
+/* Tailwind 4 sustituye las directivas @tailwind por imports con capas
+   explicitas. @config mantiene la paleta y las escalas de tailwind.config.js
+   en lugar de reescribir 10 KB de tema a CSS. */
+@layer theme, base, components, utilities;
 
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@config '../tailwind.config.js';
+
+@layer base {
 html {
   line-height: 1.15;
 }
 
-@tailwind components;
+/* Tailwind 4 cambia dos cosas del preflight que aqui se notan. La primera es
+   el color de borde por defecto, que pasa de la paleta a currentColor: sin
+   esto, cualquier `border` sin color explicito (el <hr> del listado, el
+   cuadro del checkbox) cambia de tono. Es grey-30 de tailwind.config.js, que
+   la config heredada no expone como variable CSS. */
+*,
+::after,
+::before,
+::backdrop,
+::file-selector-button {
+  border-color: #d7d7db;
+}
 
+/* La segunda: los botones pasan a cursor: default. */
+button:not(:disabled),
+[role='button']:not(:disabled) {
+  cursor: pointer;
+}
+
+}
+
+@layer components {
 :not(input) {
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -16,8 +46,8 @@ html {
 :root {
   --violet-gradient: linear-gradient(
     -180deg,
-    rgba(144, 89, 255, 0.8) 0%,
-    rgba(144, 89, 255, 0.4) 100%
+    rgb(144 89 255 / 80%) 0%,
+    rgb(144 89 255 / 40%) 100%
   );
 }
 
@@ -254,7 +284,7 @@ select {
   background-repeat: no-repeat;
 }
 
-@screen md {
+@variant md {
   .main-header img {
     height: 48px;
     width: auto;
@@ -280,7 +310,7 @@ select {
   }
 }
 
-@screen dark {
+@variant dark {
   body {
     @apply text-grey-10;
 
@@ -320,7 +350,7 @@ select {
     @apply bg-grey-90;
   }
 
-  @screen md {
+  @variant md {
     .main > section {
       @apply border;
       @apply border-grey-80;
@@ -328,24 +358,22 @@ select {
   }
 }
 
-@tailwind utilities;
+}
 
-/* Tailwind 3 removed @responsive and @variants: utilities declared in the
-   utilities layer get every variant (md:, focus:, ...) generated on demand. */
-@layer utilities {
-  .shadow-light {
-    box-shadow: 0 0 8px 0 rgba(12, 12, 13, 0.1);
-  }
+/* En Tailwind 4 las utilidades propias se declaran con @utility, que es lo
+   que les da soporte de variantes (md:, focus:, ...). */
+@utility shadow-light {
+  box-shadow: 0 0 8px 0 rgb(12 12 13 / 10%);
+}
 
-  .shadow-big {
-    box-shadow: 0 12px 18px 2px rgba(34, 0, 51, 0.04),
-      0 6px 22px 4px rgba(7, 48, 114, 0.12),
-      0 6px 10px -4px rgba(14, 13, 26, 0.12);
-  }
+@utility shadow-big {
+  box-shadow: 0 12px 18px 2px rgb(34 0 51 / 4%),
+    0 6px 22px 4px rgb(7 48 114 / 12%),
+    0 6px 10px -4px rgb(14 13 26 / 12%);
+}
 
-  .outline {
-    outline: 1px dotted grey;
-  }
+@utility outline {
+  outline: 1px dotted grey;
 }
 
 .word-break-all {

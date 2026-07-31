@@ -380,8 +380,7 @@ module.exports = {
     }
   },
 
-  corePlugins: {
-    container: false
-  },
+  // Tailwind 4 elimina corePlugins; la utilidad `container` no se usa en
+  // ninguna plantilla, así que no hacía falta desactivarla.
   plugins: []
 };
