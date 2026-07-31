@@ -24,13 +24,30 @@ services:
     environment:
       NODE_ENV: production
       VALKEY_HOST: valkey
+      FILE_DIR: /data/uploads
+
       # The URL people will actually open. Uploads embed it in the share
       # link, so it has to match how the site is reached.
       BASE_URL: ${BASE_URL:-http://localhost:1443}
-      FILE_DIR: /data/uploads
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-2684354560}
+
+      # --- Límites ---
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-2684354560} # 2,5 GB
       MAX_DOWNLOADS: ${MAX_DOWNLOADS:-100}
-      MAX_EXPIRE_SECONDS: ${MAX_EXPIRE_SECONDS:-604800}
+      MAX_FILES_PER_ARCHIVE: ${MAX_FILES_PER_ARCHIVE:-64}
+
+      # --- Caducidad ---
+      # EXPIRE_TIMES_SECONDS son las opciones del desplegable de la interfaz;
+      # tienen que caber dentro de MAX_EXPIRE_SECONDS para que se puedan usar.
+      DEFAULT_EXPIRE_SECONDS: ${DEFAULT_EXPIRE_SECONDS:-86400} # 1 día
+      MAX_EXPIRE_SECONDS: ${MAX_EXPIRE_SECONDS:-604800} # 7 días
+      EXPIRE_TIMES_SECONDS: ${EXPIRE_TIMES_SECONDS:-300,3600,86400,604800}
+      DOWNLOAD_COUNTS: ${DOWNLOAD_COUNTS:-1,2,3,4,5,20,50,100}
+
+      # --- Limpieza de blobs caducados ---
+      # Al expirar el TTL, Valkey borra los metadatos pero el fichero cifrado
+      # se queda en disco. Este barrido lo recoge. 0 lo desactiva.
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-3600}
+      CLEANUP_MIN_AGE_SECONDS: ${CLEANUP_MIN_AGE_SECONDS:-3600}
     volumes:
       - send-uploads:/data/uploads
 

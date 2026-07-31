@@ -76,9 +76,34 @@ Todo se configura con variables de entorno. Las que se usan a diario:
 | `VALKEY_PORT` | `6379` | Puerto de Valkey |
 | `MAX_FILE_SIZE` | `2684354560` (2,5 GB) | Tamaño máximo por envío |
 | `MAX_DOWNLOADS` | `100` | Tope de descargas por enlace |
-| `MAX_EXPIRE_SECONDS` | `604800` (7 días) | Caducidad máxima |
-| `DEFAULT_EXPIRE_SECONDS` | `86400` (1 día) | Caducidad por defecto |
 | `MAX_FILES_PER_ARCHIVE` | `64` | Ficheros por envío |
+| `DEFAULT_EXPIRE_SECONDS` | `86400` (1 día) | Caducidad por defecto |
+| `MAX_EXPIRE_SECONDS` | `604800` (7 días) | Caducidad máxima |
+| `EXPIRE_TIMES_SECONDS` | `300,3600,86400,604800` | Opciones del desplegable de caducidad |
+| `DOWNLOAD_COUNTS` | `1,2,3,4,5,20,50,100` | Opciones del desplegable de descargas |
+| `CLEANUP_INTERVAL_SECONDS` | `3600` | Cada cuánto se barren los blobs caducados (`0` desactiva) |
+| `CLEANUP_MIN_AGE_SECONDS` | `3600` | Edad mínima para considerar un blob huérfano |
+
+Las dos listas van separadas por comas y sus valores tienen que caber dentro
+de `MAX_EXPIRE_SECONDS` y `MAX_DOWNLOADS`, o la interfaz los descarta. Por
+ejemplo, para permitir hasta 30 días:
+
+```bash
+MAX_EXPIRE_SECONDS=2592000 EXPIRE_TIMES_SECONDS=3600,86400,604800,2592000 \
+  docker compose up -d
+```
+
+### Blobs caducados
+
+El TTL vive en Valkey. Cuando un envío caduca desaparecen sus metadatos, pero
+el fichero cifrado se queda en disco: sin la clave es indescifrable, aunque
+sigue ocupando espacio. El servidor pasa un barrido periódico que borra los
+blobs que ya no tienen metadatos.
+
+Sólo borra ficheros con más de `CLEANUP_MIN_AGE_SECONDS`, porque una subida en
+curso todavía no tiene metadatos escritos y si no se distinguiera se borraría
+sola. El barrido no aplica a S3 ni a GCS, que se limpian con sus propias
+reglas de ciclo de vida.
 
 Opcionalmente, en vez del disco local puedes usar S3 (`S3_BUCKET`,
 `S3_ENDPOINT`, `S3_REGION`, `S3_USE_PATH_STYLE_ENDPOINT`) o Google Cloud

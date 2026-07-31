@@ -121,6 +121,21 @@ const conf = convict({
     format: 'String',
     default: `${tmpdir()}${path.sep}send-${randomBytes(4).toString('hex')}`,
     env: 'FILE_DIR'
+  },
+  // El TTL vive en Valkey: al caducar desaparecen los metadatos, pero el blob
+  // cifrado se queda en disco ocupando espacio. Este barrido lo recoge.
+  cleanup_interval_seconds: {
+    format: Number,
+    default: 3600,
+    env: 'CLEANUP_INTERVAL_SECONDS'
+  },
+  // Un fichero recien subido todavia no tiene metadatos, asi que hay que
+  // dejarlo madurar antes de considerarlo huerfano o se borraria una subida
+  // en curso.
+  cleanup_min_age_seconds: {
+    format: Number,
+    default: 3600,
+    env: 'CLEANUP_MIN_AGE_SECONDS'
   }
 });
 
@@ -128,4 +143,11 @@ const conf = convict({
 conf.validate({ allowed: 'strict' });
 
 const props = conf.getProperties();
+
+// convict devuelve las listas del entorno como cadenas, mientras que los
+// valores por defecto son numeros. El cliente compara estas opciones con ===
+// contra el valor seleccionado, asi que hay que dejarlas siempre numericas.
+props.expire_times_seconds = props.expire_times_seconds.map(Number);
+props.download_counts = props.download_counts.map(Number);
+
 module.exports = props;

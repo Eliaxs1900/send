@@ -4,6 +4,7 @@ const config = require('../config');
 const routes = require('../routes');
 const pages = require('../routes/pages');
 const attachWebSocket = require('../ws');
+const cleanup = require('../cleanup');
 
 const app = express();
 
@@ -24,3 +25,4 @@ app.use(pages.notfound);
 
 const server = app.listen(config.listen_port, config.listen_address);
 attachWebSocket(server);
+cleanup.start();
