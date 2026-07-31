@@ -104,11 +104,19 @@ un certificado con su propia CA local:
 SEND_HOST=192.168.1.50 docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 ```
 
-Y entras por `https://192.168.1.50` (puerto 443, ya sin `:1443`).
+Con eso basta escribir **`192.168.1.50`** en el navegador: el puerto 80 atiende
+y redirige a `https://192.168.1.50`, sin tener que teclear el esquema ni
+ningún puerto.
 
 Usa la IP de la máquina en la LAN, y reserva esa IP en el router: si el DHCP
 se la cambia, el certificado deja de valer y los enlaces ya compartidos
 apuntan a la dirección antigua.
+
+Con esta configuración el `1443` del servidor deja de publicarse en la red y
+queda atado a `127.0.0.1`, para que desde fuera sólo exista la vía con TLS.
+Entrar por `http://<ip>:1443` daría una página rota: al estar `BASE_URL` en
+`https`, la CSP reescribe los assets a `https://<ip>:1443`, donde no escucha
+nadie. Desde la propia máquina, `http://localhost:1443` sigue funcionando.
 
 ### El aviso del certificado
 

@@ -8,12 +8,15 @@
 # sin salir a Internet ni necesitar dominio.
 
 {
-	# nada de ACME público: esto no es accesible desde fuera
-	auto_https disable_redirects
-
 	# Los navegadores no mandan SNI cuando la URL es una IP literal, así que
 	# hay que decirle a Caddy qué certificado servir por defecto.
 	default_sni {$SEND_HOST:localhost}
+}
+
+# Escribir la IP a secas en el navegador lleva al puerto 80 por HTTP. Caddy
+# atiende ahí y redirige a HTTPS, que es lo único donde el cifrado funciona.
+http://{$SEND_HOST:localhost} {
+	redir https://{$SEND_HOST:localhost}{uri} permanent
 }
 
 https://{$SEND_HOST:localhost} {

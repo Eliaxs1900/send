@@ -8,6 +8,8 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
+      # el 80 recibe a quien escribe la IP a secas y lo manda al 443
+      - '80:80'
       - '443:443'
     environment:
       SEND_HOST: ${SEND_HOST:-localhost}
@@ -19,6 +21,11 @@ services:
       - web
 
   web:
+    # Sin TLS el cifrado no funciona, asi que por la red local solo debe
+    # existir la via de Caddy. El 1443 se queda accesible desde esta maquina
+    # (localhost si es contexto seguro) para pruebas.
+    ports: !override
+      - '127.0.0.1:1443:1443'
     environment:
       # los enlaces compartidos tienen que apuntar al host TLS, no al :1443
       BASE_URL: https://${SEND_HOST:-localhost}
