@@ -1,23 +1,19 @@
 # Tests
 
-To run all the tests use `npm test`. This will run the tests and produce a code coverage report at [coverage/index.html](../coverage/index.html). The full test suite is run as a hook on each `git push`. [Mocha](https://mochajs.org) is our preferred test runner.
-
-## Frontend
-
-Unit tests reside in `test/frontend/tests`.
-
-Frontend tests can be ran in the browser by running `npm start` and then browsing to http://localhost:8080/test. Doing it this way will watch for changes and rerun the suite automatically.
-
-You can also run them in headless Chrome by using `npm run test:frontend`. The results will be printed to the console.
+Se ejecutan con `npm test`. El runner es [Mocha](https://mochajs.org).
 
 ## Backend
 
-Unit tests reside in `test/backend`
+Los tests viven en `test/backend` y se lanzan con `npm run test:backend`.
+Se usan [Sinon](https://sinonjs.org/) y
+[proxyquire](https://github.com/thlorenz/proxyquire) para los dobles.
 
-Backend test can be run with `npm run test:backend`. [Sinon](http://sinonjs.org/) and [proxyquire](https://github.com/thlorenz/proxyquire) are used for mocking.
+El almacenamiento se prueba contra el Valkey en memoria (`ioredis-mock`), que
+se activa solo con `NODE_ENV=development` y `VALKEY_HOST=mock`.
 
-## Integration
+## Frontend e integración
 
-Integration tests include UI tests that run with Selenium.
-
-The preferred way to run these locally is with `npm run test-integration` which requires docker. To watch the tests connect with VNC. On mac enter `vnc://localhost:5900` in Safari and use the password `secret` to connect. For info on debugging a test see the [wdio debug docs](http://webdriver.io/api/utility/debug.html).
+La suite de frontend corría en Chrome headless con puppeteer, y la de
+integración con Selenium y WebdriverIO. Ambas dependían del arnés de pruebas
+que se servía desde webpack-dev-server, incompatible con webpack 5, y llevaban
+años sin ejecutarse. Se eliminaron al modernizar el proyecto.

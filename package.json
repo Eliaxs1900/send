@@ -16,7 +16,6 @@
     "lint": "npm-run-all lint:*",
     "lint:css": "stylelint \"app/**/*.css\"",
     "lint:js": "eslint .",
-    "lint-locales": "node scripts/lint-locales",
     "format": "prettier '**/*.js' 'assets/*.css' --write",
     "test": "npm run test:backend",
     "test:backend": "mocha --reporter=min test/backend",
