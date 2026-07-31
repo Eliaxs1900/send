@@ -1,8 +1,9 @@
 .circleci
-.nyc_output
+.git
 .vscode
 .DS_Store
 coverage
 docs
-firefox
+dist
 node_modules
+.env

@@ -315,7 +315,7 @@ async function tryDownloadStream(id, dlToken, signal, tries = 2) {
       return tryDownloadStream(id, dlToken, signal, tries);
     }
     if (e.name === 'AbortError') {
-      throw new Error('0');
+      throw new Error('0', { cause: e });
     }
     throw e;
   }

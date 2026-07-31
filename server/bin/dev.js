@@ -1,45 +1,28 @@
+const fs = require('fs');
+const path = require('path');
+const morgan = require('morgan');
 const assets = require('../../common/assets');
 const routes = require('../routes');
 const pages = require('../routes/pages');
-const tests = require('../../test/frontend/routes');
-const express = require('express');
-const expressWs = require('@dannycoates/express-ws');
-const morgan = require('morgan');
-const config = require('../config');
+const attachWebSocket = require('../ws');
 
-const ID_REGEX = '([0-9a-fA-F]{10, 16})';
+const DIST = path.resolve(__dirname, '../../dist');
 
-module.exports = function(app, devServer) {
-  const wsapp = express();
-  expressWs(wsapp, null, { perMessageDeflate: false });
-  routes(wsapp);
-  wsapp.ws('/api/ws', require('../routes/ws'));
-  wsapp.listen(1338, config.listen_address);
+// webpack-dev-server is configured with `writeToDisk`, so the freshly built
+// manifest is always readable from dist/.
+function readManifest() {
+  return JSON.parse(fs.readFileSync(path.join(DIST, 'manifest.json'), 'utf8'));
+}
 
-  assets.setMiddleware(devServer.middleware);
+module.exports = function(devServer) {
+  const app = devServer.app;
+
+  assets.setManifestReader(readManifest);
   app.use(morgan('dev', { stream: process.stderr }));
-  function android(req, res) {
-    const index = devServer.middleware.fileSystem
-      .readFileSync(devServer.middleware.getFilenameFromUrl('/android.html'))
-      .toString()
-      .replace(
-        '<base href="file:///android_asset/" />',
-        '<base href="http://localhost:8080/" />'
-      );
-    res.set('Content-Type', 'text/html');
-    res.send(index);
-  }
-  if (process.env.ANDROID) {
-    // map all html routes to the android index.html
-    app.get('/', android);
-    app.get(`/share/:id${ID_REGEX}`, android);
-    app.get('/completed', android);
-    app.get('/preferences', android);
-    app.get('/options', android);
-    app.get('/oauth', android);
-  }
+
   routes(app);
-  tests(app);
+  attachWebSocket(devServer.server, { trustProxy: false });
+
   // webpack-dev-server routes haven't been added yet
   // so wait for next tick to add 404 handler
   process.nextTick(() => app.use(pages.notfound));

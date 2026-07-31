@@ -269,7 +269,7 @@ export default class User {
   }
 
   async syncFileList() {
-    let changes = { incoming: false, outgoing: false, downloadCount: false };
+    let changes;
     if (!this.loggedIn) {
       return this.storage.merge();
     }

@@ -3,8 +3,6 @@ const storage = require('../storage');
 const config = require('../config');
 const mozlog = require('../log');
 const Limiter = require('../limiter');
-const fxa = require('../fxa');
-const { statUploadEvent } = require('../amplitude');
 const { encryptedSize } = require('../../app/utils');
 
 const { Transform } = require('stream');
@@ -30,31 +28,13 @@ module.exports = function(ws, req) {
       const dlimit = fileInfo.dlimit || 1;
       const metadata = fileInfo.fileMetadata;
       const auth = fileInfo.authorization;
-      const user = await fxa.verify(fileInfo.bearer);
-      const maxFileSize = user
-        ? config.max_file_size
-        : config.anon_max_file_size;
-      const maxExpireSeconds = user
-        ? config.max_expire_seconds
-        : config.anon_max_expire_seconds;
-      const maxDownloads = user
-        ? config.max_downloads
-        : config.anon_max_downloads;
 
-      if (config.fxa_required && !user) {
-        ws.send(
-          JSON.stringify({
-            error: 401
-          })
-        );
-        return ws.close();
-      }
       if (
         !metadata ||
         !auth ||
         timeLimit <= 0 ||
-        timeLimit > maxExpireSeconds ||
-        dlimit > maxDownloads
+        timeLimit > config.max_expire_seconds ||
+        dlimit > config.max_downloads
       ) {
         ws.send(
           JSON.stringify({
@@ -66,15 +46,13 @@ module.exports = function(ws, req) {
 
       const meta = {
         owner,
-        fxa: user ? 1 : 0,
         metadata,
         dlimit,
         auth: auth.split(' ')[1],
         nonce: crypto.randomBytes(16).toString('base64')
       };
 
-      const protocol = config.env === 'production' ? 'https' : req.protocol;
-      const url = `${protocol}://${req.get('host')}/download/${newId}/`;
+      const url = `${req.protocol}://${req.host}/download/${newId}/`;
 
       ws.send(
         JSON.stringify({
@@ -83,7 +61,7 @@ module.exports = function(ws, req) {
           id: newId
         })
       );
-      const limiter = new Limiter(encryptedSize(maxFileSize));
+      const limiter = new Limiter(encryptedSize(config.max_file_size));
       const eof = new Transform({
         transform: function(chunk, encoding, callback) {
           if (chunk.length === 1 && chunk[0] === 0) {
@@ -109,18 +87,6 @@ module.exports = function(ws, req) {
         // in order to avoid having to check socket state and clean
         // up storage, possibly with an exception that we can catch.
         ws.send(JSON.stringify({ ok: true }));
-        statUploadEvent({
-          id: newId,
-          ip: req.ip,
-          country: req.geo.country,
-          state: req.geo.state,
-          owner,
-          dlimit,
-          timeLimit,
-          anonymous: !user,
-          size: limiter.length,
-          agent: req.ua.browser.name || req.ua.ua.substring(0, 6)
-        });
       }
     } catch (e) {
       log.error('upload', e);

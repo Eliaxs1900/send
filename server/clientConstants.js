@@ -2,10 +2,12 @@ const config = require('./config');
 
 module.exports = {
   LIMITS: {
+    // There are no accounts in this build, so every visitor gets the full
+    // limits. ANON is kept because the client reads it for logged-out users.
     ANON: {
-      MAX_FILE_SIZE: config.anon_max_file_size,
-      MAX_DOWNLOADS: config.anon_max_downloads,
-      MAX_EXPIRE_SECONDS: config.anon_max_expire_seconds
+      MAX_FILE_SIZE: config.max_file_size,
+      MAX_DOWNLOADS: config.max_downloads,
+      MAX_EXPIRE_SECONDS: config.max_expire_seconds
     },
     MAX_FILE_SIZE: config.max_file_size,
     MAX_DOWNLOADS: config.max_downloads,

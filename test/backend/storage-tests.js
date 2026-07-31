@@ -25,12 +25,12 @@ const config = {
   default_expire_seconds: 20,
   expire_times_seconds: [10, 20, 30],
   env: 'development',
-  redis_host: 'mock'
+  valkey_host: 'mock'
 };
 
 const storage = proxyquire('../../server/storage', {
   '../config': config,
-  '../log': () => {},
+  '../log': () => ({ error() {}, warn() {}, info() {}, debug() {}, verbose() {} }),
   './s3': MockStorage
 });
 
@@ -63,7 +63,7 @@ describe('Storage', function() {
     it('sets expiration to expire time', async function() {
       const seconds = 100;
       await storage.set('x', null, { foo: 'bar' }, seconds);
-      const s = await storage.redis.ttlAsync('x');
+      const s = await storage.valkey.ttl('x');
       await storage.del('x');
       assert.equal(Math.ceil(s), seconds);
     });
@@ -88,7 +88,7 @@ describe('Storage', function() {
     it('sets metadata', async function() {
       const m = { foo: 'bar' };
       await storage.set('x', null, m);
-      const meta = await storage.redis.hgetallAsync('x');
+      const meta = await storage.valkey.hgetall('x');
       delete meta.prefix;
       await storage.del('x');
       assert.deepEqual(meta, m);
@@ -99,7 +99,7 @@ describe('Storage', function() {
     it('works', async function() {
       await storage.set('x', null);
       storage.setField('x', 'y', 'z');
-      const z = await storage.redis.hgetAsync('x', 'y');
+      const z = await storage.valkey.hget('x', 'y');
       assert.equal(z, 'z');
       await storage.del('x');
     });
@@ -127,7 +127,6 @@ describe('Storage', function() {
         pwd: 0,
         dl: 1,
         dlimit: 1,
-        fxa: 1,
         auth: 'foo',
         metadata: 'bar',
         nonce: 'baz',
@@ -142,7 +141,6 @@ describe('Storage', function() {
           dead: false,
           flagged: false,
           dlToken: 0,
-          fxa: true,
           pwd: false,
           storage: 'excluded'
         }

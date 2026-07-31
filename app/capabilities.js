@@ -45,13 +45,8 @@ async function checkCrypto() {
     );
     return true;
   } catch (err) {
-    try {
-      window.asmCrypto = await import('asmcrypto.js');
-      await import('@dannycoates/webcrypto-liner/build/shim');
-      return true;
-    } catch (e) {
-      return false;
-    }
+    // no WebCrypto shim any more: current browsers all implement this
+    return false;
   }
 }
 
@@ -67,12 +62,8 @@ function checkStreams() {
 }
 
 async function polyfillStreams() {
-  try {
-    await import('@mattiasbuelens/web-streams-polyfill');
-    return true;
-  } catch (e) {
-    return false;
-  }
+  // the streams polyfill is gone; current browsers ship streams natively
+  return false;
 }
 
 export default async function getCapabilities() {

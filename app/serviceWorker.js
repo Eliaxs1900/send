@@ -4,7 +4,7 @@ import Keychain from './keychain';
 import { downloadStream } from './api';
 import { transformStream } from './streams';
 import Zip from './zip';
-import contentDisposition from 'content-disposition';
+import contentDisposition from './contentDisposition';
 
 let noSave = false;
 const map = new Map();

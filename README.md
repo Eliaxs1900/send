@@ -1,119 +1,133 @@
-# Firefox Send
+# Send
 
-[![CircleCI](https://img.shields.io/circleci/project/github/mozilla/send.svg)](https://circleci.com/gh/mozilla/send)
+Compartir ficheros con cifrado de extremo a extremo y enlaces que caducan.
+Fork modernizado del [Firefox Send](https://github.com/mozilla/send) de
+Mozilla, que fue archivado en 2021, puesto al día para auto-alojarlo.
 
-## NOTICE - May 2021
+Los ficheros se cifran **en el navegador** antes de subirse: el servidor sólo
+guarda un blob cifrado y unos metadatos que también van cifrados. La clave
+viaja en el fragmento (`#...`) del enlace, que nunca se envía al servidor.
 
-Mozilla discontinued the Firefox Send service in September 2021. For more information about this, please see the [Mozilla Blog](https://blog.mozilla.org/blog/2020/09/17/update-on-firefox-send-and-firefox-notes/).
-
-Please note that the [Mozilla Public License 2.0](https://www.mozilla.org/en-US/MPL/2.0/) does not "grant any rights in the trademarks, service marks, or logos of any Contributor." You may fork and modify the source code for Firefox Send pursuant to the Mozilla Public License, but you may not create a version of the service that uses Mozilla trademarks or logos.
-
-This repository is archived. In May 2021, Mozilla removed Mozilla trademarks from some of the files in this repository so that developers using this code are less likely to inadvertently infringe Mozilla's trademarks and confuse users. You are welcome to copy and modify this code under its open source license, but please ensure that all use complies with [Mozilla's trademark policy](https://www.mozilla.org/en-US/foundation/trademarks/policy/). In other words, if you create a new version of Firefox Send you must remove all "Mozilla" and "Firefox" branding to ensure that users are not confused about who is providing the service.
-
-**Docs:** [FAQ](docs/faq.md), [Encryption](docs/encryption.md), [Build](docs/build.md), [Docker](docs/docker.md), [Metrics](docs/metrics.md), [More](docs/)
-
----
-
-## Table of Contents
-
-* [What it does](#what-it-does)
-* [Requirements](#requirements)
-* [Development](#development)
-* [Commands](#commands)
-* [Configuration](#configuration)
-* [Localization](#localization)
-* [Contributing](#contributing)
-* [Testing](#testing)
-* [Deployment](#deployment)
-* [Android](#android)
-* [License](#license)
+> **Marcas registradas:** la [MPL 2.0](LICENSE) no concede derechos sobre las
+> marcas de Mozilla. Esta versión está desmarcada a propósito; si la
+> despliegas, no uses las marcas «Mozilla» ni «Firefox».
 
 ---
 
-## What it does
+## Qué cambió respecto al original
 
-A file sharing experiment which allows you to send encrypted files to other users.
+El repositorio original estaba clavado en Node 12 y dependía de servicios de
+Mozilla que ya no existen. Esta versión:
+
+- **Node 24**, Express 5, Helmet 8, webpack 5, Tailwind 3, ESLint 10.
+- **Valkey en lugar de Redis.** Redis pasó a las licencias RSALv2/SSPLv1 en
+  2024; Valkey es el fork BSD-3 de la Linux Foundation y es compatible a
+  nivel de protocolo. El cliente es `iovalkey`.
+- **AWS SDK v3** para el almacenamiento S3 opcional.
+- **Fuera los servicios muertos:** Firefox Accounts, Amplitude (telemetría),
+  Sentry y las métricas de cliente. Sin cuentas, todo el mundo tiene los
+  límites completos.
+- **Fuera los polyfills** de navegadores antiguos (IE, Edge legacy) y los
+  envoltorios de Android/iOS, que ya no compilaban.
+- WebSocket cableado directamente con `ws`, sin el `express-ws` sin mantener.
 
 ---
 
-## Requirements
+## Puesta en marcha
 
-- [Node.js 12.x](https://nodejs.org/)
-- [Redis server](https://redis.io/) (optional for development)
-- [AWS S3](https://aws.amazon.com/s3/) or compatible service (optional)
+Con Docker, que es lo más cómodo:
+
+```bash
+docker compose up -d --build
+```
+
+Y ya está en <http://localhost:1443>.
+
+Para que los enlaces que genera sean correctos, `BASE_URL` tiene que coincidir
+con la dirección por la que accedes de verdad. Por ejemplo, desde otro equipo
+de la red local:
+
+```bash
+BASE_URL=http://192.168.1.50:1443 docker compose up -d
+```
+
+Los ficheros subidos y los metadatos viven en volúmenes de Docker
+(`send-uploads` y `valkey-data`), así que sobreviven a un reinicio.
+
+### Sin Docker
+
+Necesitas Node 24 y un Valkey escuchando:
+
+```bash
+npm install
+npm run build
+VALKEY_HOST=127.0.0.1 NODE_ENV=production BASE_URL=http://localhost:1443 npm run prod
+```
 
 ---
 
-## Development
+## Configuración
 
-To start an ephemeral development server, run:
+Todo se configura con variables de entorno. Las que se usan a diario:
 
-```sh
+| Variable | Por defecto | Para qué sirve |
+|---|---|---|
+| `BASE_URL` | `http://localhost:1443` | URL pública; se incrusta en los enlaces |
+| `PORT` | `1443` | Puerto de escucha |
+| `FILE_DIR` | temporal | Dónde se guardan los blobs cifrados |
+| `VALKEY_HOST` | `mock` | Host de Valkey (`mock` = en memoria, sólo desarrollo) |
+| `VALKEY_PORT` | `6379` | Puerto de Valkey |
+| `MAX_FILE_SIZE` | `2684354560` (2,5 GB) | Tamaño máximo por envío |
+| `MAX_DOWNLOADS` | `100` | Tope de descargas por enlace |
+| `MAX_EXPIRE_SECONDS` | `604800` (7 días) | Caducidad máxima |
+| `DEFAULT_EXPIRE_SECONDS` | `86400` (1 día) | Caducidad por defecto |
+| `MAX_FILES_PER_ARCHIVE` | `64` | Ficheros por envío |
+
+Opcionalmente, en vez del disco local puedes usar S3 (`S3_BUCKET`,
+`S3_ENDPOINT`, `S3_REGION`, `S3_USE_PATH_STYLE_ENDPOINT`) o Google Cloud
+Storage (`GCS_BUCKET`). Las credenciales se toman del entorno estándar de cada
+SDK; **no las pongas en el repositorio**.
+
+La lista completa está en [server/config.js](server/config.js).
+
+### Servir por HTTPS
+
+Si `BASE_URL` empieza por `https://`, el servidor activa HSTS y
+`upgrade-insecure-requests`. Con `http://` no lo hace, para que puedas usarlo
+por IP en la red local sin que el navegador fuerce HTTPS. Detrás de un proxy
+inverso, pásale `X-Forwarded-Proto` y `X-Forwarded-Host`.
+
+---
+
+## Desarrollo
+
+```bash
 npm install
 npm start
 ```
 
-Then, browse to http://localhost:8080
+Levanta webpack-dev-server con el servidor de la aplicación dentro, en
+<http://localhost:1337>, usando un Valkey en memoria. No hace falta nada más.
+
+| Comando | Qué hace |
+|---|---|
+| `npm start` | Servidor de desarrollo con recarga |
+| `npm run build` | Compila los assets de producción a `dist/` |
+| `npm run prod` | Arranca el servidor de producción |
+| `npm test` | Tests de backend (mocha) |
+| `npm run lint` | ESLint + stylelint |
+| `npm run format` | Prettier |
 
 ---
 
-## Commands
+## Documentación
 
-| Command          | Description |
-|------------------|-------------|
-| `npm run format` | Formats the frontend and server code using **prettier**.
-| `npm run lint`   | Lints the CSS and JavaScript code.
-| `npm test`       | Runs the suite of mocha tests.
-| `npm start`      | Runs the server in development configuration.
-| `npm run build`  | Builds the production assets.
-| `npm run prod`   | Runs the server in production configuration.
+[Cifrado](docs/encryption.md) · [Build](docs/build.md) ·
+[Docker](docs/docker.md) · [Despliegue](docs/deployment.md) ·
+[FAQ](docs/faq.md)
 
 ---
 
-## Configuration
+## Licencia
 
-The server is configured with environment variables. See [server/config.js](server/config.js) for all options and [docs/docker.md](docs/docker.md) for examples.
-
----
-
-## Localization
-
-Firefox Send localization is managed via [Pontoon](https://pontoon.mozilla.org/projects/test-pilot-firefox-send/), not direct pull requests to the repository. If you want to fix a typo, add a new language, or simply know more about localization, please get in touch with the [existing localization team](https://pontoon.mozilla.org/teams/) for your language or Mozilla’s [l10n-drivers](https://wiki.mozilla.org/L10n:Mozilla_Team#Mozilla_Corporation) for guidance.
-
-see also [docs/localization.md](docs/localization.md)
-
----
-
-## Contributing
-
-Pull requests are always welcome! Feel free to check out the list of ["good first issues"](https://github.com/mozilla/send/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
-
----
-
-## Testing
-
-| ENVIRONMENT | URL
-|-------------|-----
-| Production  | <https://send.firefox.com/>
-| Stage       | <https://stage.send.nonprod.cloudops.mozgcp.net/>
-| Development | <https://send2.dev.lcip.org/>
-
----
-
-## Deployment
-
-see also [docs/deployment.md](docs/deployment.md)
-
----
-
-## Android
-
-The android implementation is contained in the `android` directory, and can be viewed locally for easy testing and editing by running `ANDROID=1 npm start` and then visiting <http://localhost:8080>. CSS and image files are located in the `android/app/src/main/assets` directory.
-
----
-
-## License
-
-[Mozilla Public License Version 2.0](LICENSE)
-
----
+[Mozilla Public License 2.0](LICENSE)

@@ -1,86 +1,63 @@
 const crypto = require('crypto');
-const bodyParser = require('body-parser');
+const express = require('express');
 const helmet = require('helmet');
-const uaparser = require('ua-parser-js');
 const storage = require('../storage');
 const config = require('../config');
 const auth = require('../middleware/auth');
 const language = require('../middleware/language');
 const pages = require('./pages');
-const filelist = require('./filelist');
 const clientConstants = require('../clientConstants');
 
 const IS_DEV = config.env === 'development';
-const ID_REGEX = '([0-9a-fA-F]{10,16})';
+// A personal instance is often reached over plain http on a LAN. Sending
+// HSTS or upgrade-insecure-requests in that case makes the browser force
+// https on the host and the site stops loading.
+const IS_HTTPS = /^https:\/\//.test(config.base_url);
+const ID_REGEX = /^[0-9a-fA-F]{10,16}$/;
+
+// path-to-regexp v8 (Express 5) dropped inline regex in route params, so the
+// id format is checked here instead of in the path itself.
+function validId(req, res, next) {
+  if (!ID_REGEX.test(req.params.id)) {
+    return res.sendStatus(404);
+  }
+  next();
+}
+
+function websocketUrl(baseUrl) {
+  return baseUrl.replace(/^http/, 'ws');
+}
 
 module.exports = function(app) {
   app.set('trust proxy', true);
-  app.use(helmet());
+  // helmet's own CSP is disabled because we build a nonce-based one below
   app.use(
-    helmet.hsts({
-      maxAge: 31536000,
-      force: !IS_DEV
-    })
+    helmet({ contentSecurityPolicy: false, strictTransportSecurity: false })
   );
-  app.use(function(req, res, next) {
-    req.ua = uaparser(req.header('user-agent'));
-    next();
-  });
+  if (!IS_DEV && IS_HTTPS) {
+    app.use(
+      helmet.strictTransportSecurity({
+        maxAge: 31536000
+      })
+    );
+  }
   app.use(function(req, res, next) {
     req.cspNonce = crypto.randomBytes(16).toString('hex');
     next();
   });
   if (!IS_DEV) {
-    let csp = {
+    const csp = {
       directives: {
         defaultSrc: ["'self'"],
-        connectSrc: [
-          "'self'",
-          config.base_url.replace(/^https:\/\//, 'wss://')
-        ],
+        connectSrc: ["'self'", websocketUrl(config.base_url)],
         imgSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          function(req) {
-            return `'nonce-${req.cspNonce}'`;
-          }
-        ],
+        scriptSrc: ["'self'", req => `'nonce-${req.cspNonce}'`],
         formAction: ["'none'"],
         frameAncestors: ["'none'"],
         objectSrc: ["'none'"],
-        reportUri: '/__cspreport__'
+        upgradeInsecureRequests: IS_HTTPS ? [] : null
       }
     };
-    if (config.fxa_client_id) {
-      csp.directives.connectSrc.push('https://accounts.firefox.com');
-      csp.directives.connectSrc.push('https://*.accounts.firefox.com');
-      csp.directives.imgSrc.push('https://firefoxusercontent.com');
-      csp.directives.imgSrc.push('https://secure.gravatar.com');
-    }
-    if (config.sentry_id) {
-      csp.directives.connectSrc.push(config.sentry_host);
-    }
-    if (
-      /^https:\/\/.*\.dev\.lcip\.org$/.test(config.base_url) ||
-      /^https:\/\/.*\.send\.nonprod\.cloudops\.mozgcp\.net$/.test(
-        config.base_url
-      )
-    ) {
-      csp.directives.connectSrc.push('https://*.dev.lcip.org');
-      csp.directives.imgSrc.push('https://*.dev.lcip.org');
-    }
-    if (config.fxa_csp_oauth_url != '') {
-      csp.directives.connectSrc.push(config.fxa_csp_oauth_url);
-    }
-    if (config.fxa_csp_content_url != '') {
-      csp.directives.connectSrc.push(config.fxa_csp_content_url);
-    }
-    if (config.fxa_csp_profile_url != '') {
-      csp.directives.connectSrc.push(config.fxa_csp_profile_url);
-    }
-    if (config.fxa_csp_profileimage_url != '') {
-      csp.directives.imgSrc.push(config.fxa_csp_profileimage_url);
-    }
 
     app.use(helmet.contentSecurityPolicy(csp));
   }
@@ -93,57 +70,44 @@ module.exports = function(app) {
     );
     next();
   });
-  app.use(function(req, res, next) {
-    try {
-      // set by the load balancer
-      const [country, state] = req.header('X-Client-Geo-Location').split(',');
-      req.geo = {
-        country,
-        state
-      };
-    } catch (e) {
-      req.geo = {};
-    }
-    next();
-  });
-  app.use(bodyParser.json());
-  app.use(bodyParser.text());
+  app.use(express.json());
+  app.use(express.text());
   app.get('/', language, pages.index);
   app.get('/config', function(req, res) {
     res.json(clientConstants);
   });
   app.get('/error', language, pages.blank);
-  app.get('/oauth', language, pages.blank);
-  app.get('/login', language, pages.index);
   app.get('/report', language, pages.blank);
   app.get('/app.webmanifest', language, require('./webmanifest'));
-  app.get(`/download/:id${ID_REGEX}`, language, pages.download);
+  app.get('/download/:id', validId, language, pages.download);
   app.get('/unsupported/:reason', language, pages.unsupported);
-  app.get(`/api/download/token/:id${ID_REGEX}`, auth.hmac, require('./token'));
-  app.get(`/api/download/:id${ID_REGEX}`, auth.dlToken, require('./download'));
   app.get(
-    `/api/download/blob/:id${ID_REGEX}`,
+    '/api/download/token/:id',
+    validId,
+    auth.hmac,
+    require('./token')
+  );
+  app.get('/api/download/:id', validId, auth.dlToken, require('./download'));
+  app.get(
+    '/api/download/blob/:id',
+    validId,
     auth.dlToken,
     require('./download')
   );
   app.post(
-    `/api/download/done/:id${ID_REGEX}`,
+    '/api/download/done/:id',
+    validId,
     auth.dlToken,
     require('./done.js')
   );
-  app.get(`/api/exists/:id${ID_REGEX}`, require('./exists'));
-  app.get(`/api/metadata/:id${ID_REGEX}`, auth.hmac, require('./metadata'));
-  app.get('/api/filelist/:id([\\w-]{16})', auth.fxa, filelist.get);
-  app.post('/api/filelist/:id([\\w-]{16})', auth.fxa, filelist.post);
-  // app.post('/api/upload', auth.fxa, require('./upload'));
-  app.post(`/api/delete/:id${ID_REGEX}`, auth.owner, require('./delete'));
-  app.post(`/api/password/:id${ID_REGEX}`, auth.owner, require('./password'));
-  app.post(`/api/params/:id${ID_REGEX}`, auth.owner, require('./params'));
-  app.post(`/api/info/:id${ID_REGEX}`, auth.owner, require('./info'));
-  app.post(`/api/report/:id${ID_REGEX}`, auth.hmac, require('./report'));
-  app.post('/api/metrics', require('./metrics'));
+  app.get('/api/exists/:id', validId, require('./exists'));
+  app.get('/api/metadata/:id', validId, auth.hmac, require('./metadata'));
+  app.post('/api/delete/:id', validId, auth.owner, require('./delete'));
+  app.post('/api/password/:id', validId, auth.owner, require('./password'));
+  app.post('/api/params/:id', validId, auth.owner, require('./params'));
+  app.post('/api/info/:id', validId, auth.owner, require('./info'));
+  app.post('/api/report/:id', validId, auth.hmac, require('./report'));
   app.get('/__version__', function(req, res) {
-    // eslint-disable-next-line node/no-missing-require
     res.sendFile(require.resolve('../../dist/version.json'));
   });
 

@@ -2,9 +2,9 @@ const html = require('choo/html');
 const modal = require('./modal');
 
 module.exports = function(state, emit) {
-  let strings = {};
+  let strings;
   let why = '';
-  let url = '';
+  let url;
 
   if (state.params.reason !== 'outdated') {
     strings = unsupportedStrings(state);

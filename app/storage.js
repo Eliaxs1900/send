@@ -111,7 +111,7 @@ class Storage {
   }
 
   set user(info) {
-    return this.engine.setItem('user', JSON.stringify(info));
+    this.engine.setItem('user', JSON.stringify(info));
   }
 
   getFileById(id) {
@@ -208,7 +208,8 @@ class Storage {
   pruneTokens() {
     try {
       const now = Date.now();
-      const tokens = JSON.parse(this.get('dlTokens'));
+      // no key yet on a first visit: JSON.parse(null) is null
+      const tokens = JSON.parse(this.get('dlTokens')) || {};
       const keep = {};
       for (const id of Object.keys(tokens)) {
         const t = tokens[id];

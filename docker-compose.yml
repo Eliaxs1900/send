@@ -1,19 +1,39 @@
-version: "3"
 services:
+  # Valkey is the BSD-3 licensed fork of Redis (Linux Foundation), used here
+  # to avoid Redis' RSALv2/SSPLv1 licensing. It is protocol compatible.
+  valkey:
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    command: valkey-server --save 60 1 --appendonly no
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   web:
     build: .
-    links:
-      - redis
+    restart: unless-stopped
+    depends_on:
+      valkey:
+        condition: service_healthy
     ports:
-      - "1443:1443"
+      - '${PORT:-1443}:1443'
     environment:
-      - REDIS_HOST=redis
-  redis:
-    image: redis:alpine
-  selenium-firefox:
-    image: b4handjr/selenium-firefox
-    ports:
-      - "${VNC_PORT:-5900}:5900"
-    shm_size: 2g
+      NODE_ENV: production
+      VALKEY_HOST: valkey
+      # The URL people will actually open. Uploads embed it in the share
+      # link, so it has to match how the site is reached.
+      BASE_URL: ${BASE_URL:-http://localhost:1443}
+      FILE_DIR: /data/uploads
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-2684354560}
+      MAX_DOWNLOADS: ${MAX_DOWNLOADS:-100}
+      MAX_EXPIRE_SECONDS: ${MAX_EXPIRE_SECONDS:-604800}
     volumes:
-      - .:/code
+      - send-uploads:/data/uploads
+
+volumes:
+  valkey-data:
+  send-uploads:

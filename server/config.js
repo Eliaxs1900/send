@@ -1,4 +1,6 @@
 const convict = require('convict');
+// convict 6 moved the `url` and `ipaddress` formats into a separate package
+convict.addFormats(require('convict-format-with-validator'));
 const { tmpdir } = require('os');
 const path = require('path');
 const { randomBytes } = require('crypto');
@@ -13,6 +15,11 @@ const conf = convict({
     format: String,
     default: '',
     env: 'S3_ENDPOINT'
+  },
+  s3_region: {
+    format: String,
+    default: 'us-east-1',
+    env: 'S3_REGION'
   },
   s3_use_path_style_endpoint: {
     format: Boolean,
@@ -39,11 +46,6 @@ const conf = convict({
     default: 86400 * 7,
     env: 'MAX_EXPIRE_SECONDS'
   },
-  anon_max_expire_seconds: {
-    format: Number,
-    default: 86400,
-    env: 'ANON_MAX_EXPIRE_SECONDS'
-  },
   download_counts: {
     format: Array,
     default: [1, 2, 3, 4, 5, 20, 50, 100],
@@ -53,11 +55,6 @@ const conf = convict({
     format: Number,
     default: 100,
     env: 'MAX_DOWNLOADS'
-  },
-  anon_max_downloads: {
-    format: Number,
-    default: 5,
-    env: 'ANON_MAX_DOWNLOADS'
   },
   max_files_per_archive: {
     format: Number,
@@ -69,25 +66,25 @@ const conf = convict({
     default: 16,
     env: 'MAX_ARCHIVES_PER_USER'
   },
-  redis_host: {
+  valkey_host: {
     format: String,
     default: 'mock',
-    env: 'REDIS_HOST'
+    env: 'VALKEY_HOST'
   },
-  redis_event_expire: {
-    format: Boolean,
-    default: false,
-    env: 'REDIS_EVENT_EXPIRE'
+  valkey_port: {
+    format: 'port',
+    default: 6379,
+    env: 'VALKEY_PORT'
   },
-  redis_retry_time: {
+  valkey_retry_time: {
     format: Number,
     default: 10000,
-    env: 'REDIS_RETRY_TIME'
+    env: 'VALKEY_RETRY_TIME'
   },
-  redis_retry_delay: {
+  valkey_retry_delay: {
     format: Number,
     default: 500,
-    env: 'REDIS_RETRY_DELAY'
+    env: 'VALKEY_RETRY_DELAY'
   },
   listen_address: {
     format: 'ipaddress',
@@ -100,31 +97,6 @@ const conf = convict({
     arg: 'port',
     env: 'PORT'
   },
-  amplitude_id: {
-    format: String,
-    default: '',
-    env: 'AMPLITUDE_ID'
-  },
-  analytics_id: {
-    format: String,
-    default: '',
-    env: 'GOOGLE_ANALYTICS_ID'
-  },
-  sentry_id: {
-    format: String,
-    default: '',
-    env: 'SENTRY_CLIENT'
-  },
-  sentry_dsn: {
-    format: String,
-    default: '',
-    env: 'SENTRY_DSN'
-  },
-  sentry_host: {
-    format: String,
-    default: 'https://sentry.prod.mozaws.net',
-    env: 'SENTRY_HOST'
-  },
   env: {
     format: ['production', 'development', 'test'],
     default: 'development',
@@ -135,11 +107,6 @@ const conf = convict({
     default: 1024 * 1024 * 1024 * 2.5,
     env: 'MAX_FILE_SIZE'
   },
-  anon_max_file_size: {
-    format: Number,
-    default: 1024 * 1024 * 1024,
-    env: 'ANON_MAX_FILE_SIZE'
-  },
   l10n_dev: {
     format: Boolean,
     default: false,
@@ -147,63 +114,13 @@ const conf = convict({
   },
   base_url: {
     format: 'url',
-    default: 'https://send.firefox.com',
+    default: 'http://localhost:1443',
     env: 'BASE_URL'
   },
   file_dir: {
     format: 'String',
     default: `${tmpdir()}${path.sep}send-${randomBytes(4).toString('hex')}`,
     env: 'FILE_DIR'
-  },
-  fxa_required: {
-    format: Boolean,
-    default: false,
-    env: 'FXA_REQUIRED'
-  },
-  fxa_url: {
-    format: 'url',
-    default: 'http://localhost:3030',
-    env: 'FXA_URL'
-  },
-  fxa_client_id: {
-    format: String,
-    default: '', // disabled
-    env: 'FXA_CLIENT_ID'
-  },
-  fxa_key_scope: {
-    format: String,
-    default: 'https://identity.mozilla.com/apps/send',
-    env: 'FXA_KEY_SCOPE'
-  },
-  fxa_csp_oauth_url: {
-    format: String,
-    default: '',
-    env: 'FXA_CSP_OAUTH_URL'
-  },
-  fxa_csp_content_url: {
-    format: String,
-    default: '',
-    env: 'FXA_CSP_CONTENT_URL'
-  },
-  fxa_csp_profile_url: {
-    format: String,
-    default: '',
-    env: 'FXA_CSP_PROFILE_URL'
-  },
-  fxa_csp_profileimage_url: {
-    format: String,
-    default: '',
-    env: 'FXA_CSP_PROFILEIMAGE_URL'
-  },
-  survey_url: {
-    format: String,
-    default: '',
-    env: 'SURVEY_URL'
-  },
-  ip_db: {
-    format: String,
-    default: '',
-    env: 'IP_DB'
   }
 });
 

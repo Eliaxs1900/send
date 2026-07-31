@@ -7,7 +7,6 @@ const langData = require('cldr-core/supplemental/likelySubtags.json');
 
 // We return early in the middleware if the lang header is long.
 // If that ever changes we should re-evaluate this regex.
-// eslint-disable-next-line security/detect-unsafe-regex
 const acceptLanguages = /(([a-zA-Z]+(-[a-zA-Z0-9]+){0,2})|\*)(;q=[0-1](\.[0-9]+)?)?/g;
 
 function allLangs() {

@@ -1,58 +1,45 @@
 ##
-# Firefox Send - Mozilla
+# Send - self-hosted, encrypted file sharing
 #
 # License https://github.com/mozilla/send/blob/master/LICENSE
 ##
 
 
-# Build project
-FROM node:12 AS builder
-RUN set -x \
-    # Add user
-    && addgroup --gid 10001 app \
-    && adduser --disabled-password \
-        --gecos '' \
-        --gid 10001 \
-        --home /app \
-        --uid 10001 \
-        app
-COPY --chown=app:app . /app
-USER app
+# Build the client bundle
+FROM node:24-slim AS builder
 WORKDIR /app
-RUN set -x \
-    # Build
-    && PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm ci \
-    && npm run build
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+RUN npm run build
 
 
-# Main image
-FROM node:12-slim
+# Runtime image
+FROM node:24-slim
 RUN set -x \
-    # Add user
-    && addgroup --gid 10001 app \
-    && adduser --disabled-password \
-        --gecos '' \
-        --gid 10001 \
-        --home /app \
-        --uid 10001 \
-        app
-RUN apt-get update && apt-get -y install \
-    git-core \
-    && rm -rf /var/lib/apt/lists/*
-USER app
+    && groupadd --gid 10001 app \
+    && useradd --uid 10001 --gid 10001 --home-dir /app --create-home app
+
 WORKDIR /app
+
 COPY --chown=app:app package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
+
 COPY --chown=app:app app app
 COPY --chown=app:app common common
 COPY --chown=app:app public/locales public/locales
 COPY --chown=app:app server server
 COPY --chown=app:app --from=builder /app/dist dist
 
-RUN npm ci --production && npm cache clean --force
-RUN mkdir -p /app/.config/configstore
-RUN ln -s dist/version.json version.json
+RUN ln -s dist/version.json version.json \
+    && mkdir -p /data/uploads \
+    && chown -R app:app /data
 
+USER app
+
+ENV NODE_ENV=production
 ENV PORT=1443
+ENV FILE_DIR=/data/uploads
 
 EXPOSE ${PORT}
 
