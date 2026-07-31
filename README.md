@@ -43,13 +43,10 @@ docker compose up -d --build
 
 Y ya está en <http://localhost:1443>.
 
-Para que los enlaces que genera sean correctos, `BASE_URL` tiene que coincidir
-con la dirección por la que accedes de verdad. Por ejemplo, desde otro equipo
-de la red local:
-
-```bash
-BASE_URL=http://192.168.1.50:1443 docker compose up -d
-```
+Así, tal cual, sólo sirve **desde esta misma máquina**: el cifrado necesita un
+contexto seguro y `localhost` es el único origen que los navegadores aceptan
+sin HTTPS. Para entrar desde el móvil o desde otro equipo, mira
+[Acceder desde otros equipos](#acceder-desde-otros-equipos-de-la-red-local).
 
 Los ficheros subidos y los metadatos viven en volúmenes de Docker
 (`send-uploads` y `valkey-data`), así que sobreviven a un reinicio.
@@ -90,12 +87,61 @@ SDK; **no las pongas en el repositorio**.
 
 La lista completa está en [server/config.js](server/config.js).
 
-### Servir por HTTPS
+---
+
+## Acceder desde otros equipos de la red local
+
+**HTTPS es obligatorio, también en la red local.** Los navegadores sólo
+exponen `crypto.subtle` (y los service workers) en *contextos seguros*:
+`localhost` o HTTPS. Si entras por `http://192.168.1.x:1443`, la aplicación
+detecta que no hay API de cifrado y te manda a `/unsupported/crypto`. No es
+configurable: es una regla del navegador, y todo el producto depende de ella.
+
+Para eso está `docker-compose.https.yml`, que pone un Caddy delante emitiendo
+un certificado con su propia CA local:
+
+```bash
+SEND_HOST=192.168.1.50 docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+```
+
+Y entras por `https://192.168.1.50` (puerto 443, ya sin `:1443`).
+
+Usa la IP de la máquina en la LAN, y reserva esa IP en el router: si el DHCP
+se la cambia, el certificado deja de valer y los enlaces ya compartidos
+apuntan a la dirección antigua.
+
+### El aviso del certificado
+
+La CA es local, así que los dispositivos no la conocen y saldrá un aviso. Dos
+maneras de resolverlo:
+
+- **Aceptar la excepción** en el navegador («Configuración avanzada» →
+  «Continuar»). Es lo más rápido; una vez aceptada, el origen ya cuenta como
+  contexto seguro y el cifrado funciona. Hay que hacerlo en cada dispositivo.
+- **Instalar la CA**, y entonces no vuelve a avisar. El certificado raíz se
+  saca así:
+
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.https.yml exec caddy \
+    cat /data/caddy/pki/authorities/local/root.crt > send-CA-local.crt
+  ```
+
+  En Windows, importar en «Entidades de certificación raíz de confianza». En
+  Android, Ajustes → Seguridad → Cifrado y credenciales → Instalar certificado
+  → Certificado de CA. En iOS, instalar el perfil y luego activarlo en Ajustes
+  → General → Información → Ajustes de confianza de certificados.
+
+Si prefieres no tocar certificados en cada dispositivo, **Tailscale** da un
+nombre `*.ts.net` con certificado de verdad ya confiado, a cambio de que los
+equipos estén en tu tailnet.
+
+### Detrás de otro proxy inverso
 
 Si `BASE_URL` empieza por `https://`, el servidor activa HSTS y
-`upgrade-insecure-requests`. Con `http://` no lo hace, para que puedas usarlo
-por IP en la red local sin que el navegador fuerce HTTPS. Detrás de un proxy
-inverso, pásale `X-Forwarded-Proto` y `X-Forwarded-Host`.
+`upgrade-insecure-requests`; con `http://` no lo hace, para no romper el
+acceso por IP. Pásale `X-Forwarded-Proto` y `X-Forwarded-Host`, y asegúrate de
+que reenvía la conexión WebSocket de `/api/ws`, que es por donde suben los
+ficheros.
 
 ---
 

@@ -1,0 +1,24 @@
+# TLS para la red local.
+#
+# El navegador sólo expone crypto.subtle (y los service workers) en contextos
+# seguros: localhost o HTTPS. Sin esto, entrar por la IP de la LAN lleva
+# directo a /unsupported/crypto.
+#
+# `tls internal` hace que Caddy emita el certificado con su propia CA local,
+# sin salir a Internet ni necesitar dominio.
+
+{
+	# nada de ACME público: esto no es accesible desde fuera
+	auto_https disable_redirects
+
+	# Los navegadores no mandan SNI cuando la URL es una IP literal, así que
+	# hay que decirle a Caddy qué certificado servir por defecto.
+	default_sni {$SEND_HOST:localhost}
+}
+
+https://{$SEND_HOST:localhost} {
+	tls internal
+
+	# reverse_proxy reenvía la conexión de subida (/api/ws) sin más ajustes
+	reverse_proxy web:1443
+}

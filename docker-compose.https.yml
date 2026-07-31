@@ -1,0 +1,28 @@
+# Capa de HTTPS para acceder desde otros equipos de la red local.
+#
+#   SEND_HOST=192.168.1.50 docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# Después, https://192.168.1.50 (puerto 443, sin :1443).
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '443:443'
+    environment:
+      SEND_HOST: ${SEND_HOST:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+
+  web:
+    environment:
+      # los enlaces compartidos tienen que apuntar al host TLS, no al :1443
+      BASE_URL: https://${SEND_HOST:-localhost}
+
+volumes:
+  caddy-data:
+  caddy-config:
