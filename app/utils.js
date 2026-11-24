@@ -276,6 +276,39 @@ function setTranslate(t) {
   translate = t;
 }
 
+// Pegar desde el portapapeles (ver pasteManager.js). Aquí y no allí porque la
+// interfaz también se pinta en el servidor, donde no hay window ni navigator.
+function canReadClipboard() {
+  if (typeof window === 'undefined' || typeof navigator !== 'object') {
+    return false;
+  }
+  const clipboard = navigator.clipboard;
+  return !!(
+    window.isSecureContext &&
+    clipboard &&
+    (clipboard.read || clipboard.readText)
+  );
+}
+
+function pasteShortcut() {
+  const platform =
+    typeof navigator === 'object'
+      ? (navigator.userAgentData && navigator.userAgentData.platform) ||
+        navigator.platform ||
+        navigator.userAgent ||
+        ''
+      : '';
+  return /mac|iphone|ipad|ipod/i.test(platform) ? '⌘V' : 'Ctrl+V';
+}
+
+// Con teclado y ratón tiene sentido recordar el atajo; en el móvil, no.
+function hasFinePointer() {
+  return (
+    typeof window !== 'undefined' &&
+    (!window.matchMedia || window.matchMedia('(pointer: fine)').matches)
+  );
+}
+
 function concat(b1, b2) {
   const result = new Uint8Array(b1.length + b2.length);
   result.set(b1, 0);
@@ -305,5 +338,8 @@ module.exports = {
   timeLeft,
   platform,
   encryptedSize,
-  setTranslate
+  setTranslate,
+  canReadClipboard,
+  pasteShortcut,
+  hasFinePointer
 };

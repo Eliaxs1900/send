@@ -122,6 +122,11 @@ dragAndDropFiles = Arrastrar y soltar archivos
 # the second part of the string 'Drag and drop files or click to send up to 1GB'
 # $size is the size of the file, displayed using the fileSize message as format (e.g. "2.5MB")
 orClickWithSize = o hacer clic para enviar hasta { $size }
+pasteFromClipboardButton = Pegar del portapapeles
+# $shortcut is the keyboard shortcut to paste, e.g. "⌘V" or "Ctrl+V"
+pasteShortcutHint = o pulsa { $shortcut } en cualquier parte de la página (también archivos)
+clipboardEmpty = No hay ninguna imagen ni texto en el portapapeles para pegar.
+clipboardReadFailed = El navegador no ha dejado leer el portapapeles. Pulsa { $shortcut } para pegar.
 addPassword = Proteger con contraseña
 emailPlaceholder = Introducir dirección de correo
 # $size is the size of the file, displayed using the fileSize message as format (e.g. "2.5MB")

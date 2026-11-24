@@ -115,6 +115,11 @@ dragAndDropFiles = Drag and drop files
 # the second part of the string 'Drag and drop files or click to send up to 1GB'
 # $size is the size of the file, displayed using the fileSize message as format (e.g. "2.5MB")
 orClickWithSize = or click to send up to { $size }
+pasteFromClipboardButton = Paste from clipboard
+# $shortcut is the keyboard shortcut to paste, e.g. "⌘V" or "Ctrl+V"
+pasteShortcutHint = or press { $shortcut } anywhere on the page (files too)
+clipboardEmpty = There is no image or text on the clipboard to paste.
+clipboardReadFailed = The browser did not allow reading the clipboard. Press { $shortcut } to paste instead.
 addPassword = Protect with password
 emailPlaceholder = Enter your email
 # $size is the size of the file, displayed using the fileSize message as format (e.g. "2.5MB")

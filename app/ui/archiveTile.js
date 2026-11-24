@@ -5,13 +5,64 @@ const raw = require('choo/html/raw');
 const assets = require('../../common/assets');
 const {
   bytes,
+  canReadClipboard,
   copyToClipboard,
+  hasFinePointer,
   list,
+  pasteShortcut,
   percent,
   platform,
   timeLeft
 } = require('../utils');
 const expiryOptions = require('./expiryOptions');
+
+// Botón «Pegar del portapapeles» (solo si el navegador deja leerlo) y, con
+// teclado y ratón, el recordatorio del atajo, que también pega archivos.
+function pasteOption(state, emit, { buttonClass, hintClass }) {
+  const button = canReadClipboard()
+    ? html`
+        <button
+          type="button"
+          class="${buttonClass}"
+          title="${state.translate('pasteFromClipboardButton')}"
+          onclick="${paste}"
+        >
+          <svg
+            class="w-6 h-6 mr-2 link-blue"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="5" y="4" width="14" height="17" rx="2" />
+            <path d="M9 4.5V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1" />
+            <path d="M9 11h6M9 15h4" />
+          </svg>
+          ${state.translate('pasteFromClipboardButton')}
+        </button>
+      `
+    : '';
+  const hint =
+    hintClass && hasFinePointer()
+      ? html`
+          <p class="${hintClass}">
+            ${state.translate('pasteShortcutHint', {
+              shortcut: pasteShortcut()
+            })}
+          </p>
+        `
+      : '';
+  return [button, hint];
+
+  function paste(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    emit('pasteClipboard');
+  }
+}
 
 function expiryInfo(translate, archive) {
   const l10n = timeLeft(archive.expiresAt - Date.now());
@@ -315,16 +366,22 @@ module.exports.wip = function(state, emit) {
           for="file-upload"
           class="flex flex-row items-center justify-between w-full p-2"
         >
-          <label
-            for="file-upload"
-            class="flex items-center cursor-pointer"
-            title="${state.translate('addFilesButton')}"
-          >
-            <svg class="w-6 h-6 mr-2 link-blue">
-              <use xlink:href="${assets.get('addfiles.svg')}#plus" />
-            </svg>
-            ${state.translate('addFilesButton')}
-          </label>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <label
+              for="file-upload"
+              class="flex items-center cursor-pointer"
+              title="${state.translate('addFilesButton')}"
+            >
+              <svg class="w-6 h-6 mr-2 link-blue">
+                <use xlink:href="${assets.get('addfiles.svg')}#plus" />
+              </svg>
+              ${state.translate('addFilesButton')}
+            </label>
+            ${pasteOption(state, emit, {
+              buttonClass:
+                'flex items-center cursor-pointer font-medium focus:outline'
+            })}
+          </div>
           <div class="font-normal text-sm text-grey-70 dark:text-grey-40">
             ${state.translate('totalSize', {
               size: bytes(state.archive.size)
@@ -345,13 +402,15 @@ module.exports.wip = function(state, emit) {
   `;
 
   function focus(event) {
-    event.target.nextElementSibling.firstElementChild.classList.add('outline');
+    event.target.nextElementSibling
+      .querySelector('label')
+      .classList.add('outline');
   }
 
   function blur(event) {
-    event.target.nextElementSibling.firstElementChild.classList.remove(
-      'outline'
-    );
+    event.target.nextElementSibling
+      .querySelector('label')
+      .classList.remove('outline');
   }
 
   function upload(event) {
@@ -488,6 +547,11 @@ module.exports.empty = function(state, emit) {
       >
         ${state.translate('addFilesButton')}
       </label>
+      ${pasteOption(state, emit, {
+        buttonClass:
+          'flex items-center font-medium link-blue mt-4 cursor-pointer focus:outline',
+        hintClass: 'text-sm text-grey-50 dark:text-grey-40 mt-2 text-center'
+      })}
       <p
         class="font-normal text-sm text-grey-50 dark:text-grey-40 my-6 mx-12 text-center max-w-sm leading-loose"
       >
